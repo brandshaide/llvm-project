@@ -398,6 +398,9 @@ public:
   DiagnosticsEngine &Diags;
   SourceManager &SourceMgr;
 
+  void pushClassUndergoingNSDMIParsing(CXXRecordDecl *D);
+  void popClassUndergoingNSDMIParsing();
+
   /// Flag indicating whether or not to collect detailed statistics.
   bool CollectStats;
 
@@ -7919,6 +7922,8 @@ public:
   DeduceAutoType(TypeLoc AutoTypeLoc, Expr *&Initializer, QualType &Result,
                  Optional<unsigned> DependentDeductionDepth = None,
                  bool IgnoreConstraints = false);
+
+  void DeduceAutoMemberTypeFromInitExpr(Expr *Init, FieldDecl *FDecl);
   void DiagnoseAutoDeductionFailure(VarDecl *VDecl, Expr *Init);
   bool DeduceReturnType(FunctionDecl *FD, SourceLocation Loc,
                         bool Diagnose = true);

@@ -10750,3 +10750,26 @@ void ASTContext::getFunctionFeatureMap(llvm::StringMap<bool> &FeatureMap,
                            Target->getTargetOpts().Features);
   }
 }
+
+void ASTContext::pushClassUndergoingNSDMIParsing(CXXRecordDecl *D) {
+  ClassesUndergoingNSDMIParsingStack.push_back(D);
+}
+void ASTContext::popClassUndergoingNSDMIParsing() {
+  ClassesUndergoingNSDMIParsingStack.pop_back();
+}
+
+bool ASTContext::isClassUndergoingNSDMIParsing(CXXRecordDecl *D) {
+  if (!D)
+    return ClassesUndergoingNSDMIParsingStack.size() != 0;
+  return false;
+}
+bool ASTContext::isClassTypeUndergoingNSDMIParsing(const Type *ClassTy) {
+  for (unsigned I = ClassesUndergoingNSDMIParsingStack.size(); I--; ) {
+    const Type *Ty = getRecordType(
+      ClassesUndergoingNSDMIParsingStack[I]).getTypePtr();
+    if (Ty == ClassTy) {
+      return true;
+    }
+  }
+  return false;
+}
