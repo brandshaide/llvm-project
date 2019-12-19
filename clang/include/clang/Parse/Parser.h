@@ -1899,6 +1899,7 @@ private:
     return ParseBraceInitializer();
   }
   bool MayBeDesignationStart();
+  ExprResult ParseListOfLiteralInitializer();
   ExprResult ParseBraceInitializer();
   ExprResult ParseInitializerWithPotentialDesignator();
 

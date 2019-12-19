@@ -2228,9 +2228,53 @@ APValue SourceLocExpr::EvaluateInContext(const ASTContext &Ctx,
   llvm_unreachable("unhandled case");
 }
 
+AbstractInitListExpr::AbstractInitListExpr(StmtClass SC, QualType T, ExprValueKind VK, ExprObjectKind OK,
+                     bool TD, bool VD, bool ID, bool ContainsUnexpandedParameterPack)
+    : Expr(SC, T, VK, OK, TD, VD, ID, ContainsUnexpandedParameterPack) {
+}
+
+AbstractInitListExpr::AbstractInitListExpr(StmtClass SC, EmptyShell S) : Expr(SC, S) {}
+
+
+unsigned AbstractInitListExpr::getNumInits() const {
+  if(auto P = dyn_cast_or_null<ListOfLiteralExpr>(this)) {
+    return P->getNumInits();
+  }
+  return dyn_cast<InitListExpr>(this)->getNumInits();
+}
+
+
+QualType AbstractInitListExpr::getInitType(unsigned Index) const {
+  if(auto P = dyn_cast_or_null<ListOfLiteralExpr>(this)) {
+    return P->getType();
+  }
+  return dyn_cast<InitListExpr>(this)->getInit(Index)->getType();
+}
+
+SourceLocation AbstractInitListExpr::getInitBeginLoc(unsigned Index)  const {
+  if(auto P = dyn_cast_or_null<ListOfLiteralExpr>(this)) {
+    return {};
+  }
+  return dyn_cast<InitListExpr>(this)->getInit(Index)->getBeginLoc();
+}
+
+SourceRange AbstractInitListExpr::getInitSourceRange(unsigned Index)  const {
+  if(auto P = dyn_cast_or_null<ListOfLiteralExpr>(this)) {
+    return {};
+  }
+  return dyn_cast<InitListExpr>(this)->getInit(Index)->getSourceRange();
+}
+
+bool AbstractInitListExpr::isIdiomaticZeroInitializer(const LangOptions &LangOpts) const {
+  if(auto P = dyn_cast_or_null<ListOfLiteralExpr>(this)) {
+    return false;
+  }
+  return dyn_cast<InitListExpr>(this)->isIdiomaticZeroInitializer(LangOpts);
+}
+
 InitListExpr::InitListExpr(const ASTContext &C, SourceLocation lbraceloc,
                            ArrayRef<Expr*> initExprs, SourceLocation rbraceloc)
-  : Expr(InitListExprClass, QualType(), VK_RValue, OK_Ordinary, false, false,
+  : AbstractInitListExpr(InitListExprClass, QualType(), VK_RValue, OK_Ordinary, false, false,
          false, false),
     InitExprs(C, initExprs.size()),
     LBraceLoc(lbraceloc), RBraceLoc(rbraceloc), AltForm(nullptr, true)

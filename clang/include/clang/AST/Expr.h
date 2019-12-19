@@ -4388,7 +4388,22 @@ private:
 /// Since many initializer lists have the same syntactic and semantic forms,
 /// getSyntacticForm() may return NULL, indicating that the current
 /// semantic initializer list also serves as its syntactic form.
-class InitListExpr : public Expr {
+
+class InitListExpr;
+class AbstractInitListExpr : public Expr {
+public:
+  AbstractInitListExpr(StmtClass SC, QualType T, ExprValueKind VK, ExprObjectKind OK,
+               bool TD, bool VD, bool ID, bool ContainsUnexpandedParameterPack);
+  explicit AbstractInitListExpr(StmtClass SC, EmptyShell);
+
+  unsigned getNumInits() const LLVM_READONLY;
+  SourceLocation getInitBeginLoc(unsigned Index)  const LLVM_READONLY;
+  SourceRange getInitSourceRange(unsigned Index)  const LLVM_READONLY;
+  QualType getInitType(unsigned Index) const LLVM_READONLY;
+  bool isIdiomaticZeroInitializer(const LangOptions &LangOpts) const LLVM_READONLY;
+};
+
+class InitListExpr : public AbstractInitListExpr {
   // FIXME: Eliminate this vector in favor of ASTContext allocation
   typedef ASTVector<Stmt *> InitExprsTy;
   InitExprsTy InitExprs;
@@ -4416,7 +4431,7 @@ public:
 
   /// Build an empty initializer list.
   explicit InitListExpr(EmptyShell Empty)
-    : Expr(InitListExprClass, Empty), AltForm(nullptr, true) { }
+    : AbstractInitListExpr(InitListExprClass, Empty), AltForm(nullptr, true) { }
 
   unsigned getNumInits() const { return InitExprs.size(); }
 
@@ -4603,6 +4618,44 @@ public:
   friend class ASTStmtReader;
   friend class ASTStmtWriter;
 };
+
+
+class ListOfLiteralExpr : public AbstractInitListExpr {
+  SourceLocation LBraceLoc, RBraceLoc;
+public:
+  explicit ListOfLiteralExpr(ASTContext &Context,
+                             SourceLocation LBraceLoc,
+                             ArrayRef<llvm::APInt> Values,
+                             QualType ty,
+                             SourceLocation RBraceLoc)
+      : AbstractInitListExpr(
+            ListOfLiteralExprClass,
+            ty,
+            VK_RValue,
+            OK_Ordinary,
+            false, false, false, false)
+        , LBraceLoc(LBraceLoc), RBraceLoc(RBraceLoc)
+  { }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == ListOfLiteralExprClass;
+  }
+
+  //TODO CORENTIN
+  unsigned getNumInits() const { return 2; }
+
+  SourceLocation getBeginLoc() const LLVM_READONLY { return LBraceLoc; }
+  SourceLocation getEndLoc() const LLVM_READONLY { return RBraceLoc; }
+
+  // Iterators
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
+};
+
 
 /// Represents a C99 designated initializer expression.
 ///

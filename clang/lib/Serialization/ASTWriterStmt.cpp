@@ -936,6 +936,11 @@ void ASTStmtWriter::VisitDesignatedInitUpdateExpr(DesignatedInitUpdateExpr *E) {
   Code = serialization::EXPR_DESIGNATED_INIT_UPDATE;
 }
 
+//TODO CORENTIN
+void ASTStmtWriter::VisitListOfLiteralExpr(ListOfLiteralExpr* E) {
+  VisitExpr(E);
+}
+
 void ASTStmtWriter::VisitNoInitExpr(NoInitExpr *E) {
   VisitExpr(E);
   Code = serialization::EXPR_NO_INIT;

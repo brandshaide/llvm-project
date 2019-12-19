@@ -674,7 +674,7 @@ public:
     if (!Init) return CreateDefault(Loc);
     if (!DirectInit)
       return CreateCopy(Loc, Init->getBeginLoc());
-    if (isa<InitListExpr>(Init))
+    if (isa<InitListExpr>(Init) || isa<ListOfLiteralExpr>(Init))
       return CreateDirectList(Loc, Init->getBeginLoc(), Init->getEndLoc());
     return CreateDirect(Loc, Init->getBeginLoc(), Init->getEndLoc());
   }

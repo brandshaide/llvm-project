@@ -1027,6 +1027,12 @@ void ASTStmtReader::VisitDesignatedInitUpdateExpr(DesignatedInitUpdateExpr *E) {
   E->setUpdater(Record.readSubExpr());
 }
 
+
+//TODO CORENTIN
+void ASTStmtReader::VisitListOfLiteralExpr(ListOfLiteralExpr* E) {
+  VisitExpr(E);
+}
+
 void ASTStmtReader::VisitNoInitExpr(NoInitExpr *E) {
   VisitExpr(E);
 }
