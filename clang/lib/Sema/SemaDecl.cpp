@@ -1481,7 +1481,7 @@ void Sema::PushOnScopeChains(NamedDecl *D, Scope *S, bool AddToContext) {
     }
 
     IdResolver.InsertDeclAfter(I, D);
-  } else {
+  } else if(D->getDeclName().getAsIdentifierInfo()) {
     IdResolver.AddDecl(D);
   }
 }
@@ -5920,6 +5920,11 @@ Sema::ActOnTypedefDeclarator(Scope* S, Declarator& D, DeclContext* DC,
     Previous.clear();
   }
 
+  IdentifierInfo* Name = D.getName().Identifier;
+  if(!Name || Name->isPlaceholder()) {
+    Diag(D.getBeginLoc(), diag::warn_deprecated_underscore_id_decl);
+  }
+
   DiagnoseFunctionSpecifiers(D.getDeclSpec());
 
   if (D.getDeclSpec().isInlineSpecified())
@@ -6643,6 +6648,7 @@ NamedDecl *Sema::ActOnVariableDeclarator(
   DeclarationName Name = GetNameForDeclarator(D).getName();
 
   IdentifierInfo *II = Name.getAsIdentifierInfo();
+  IdentifierInfo *VarName = II;
 
   if (D.isDecompositionDeclarator()) {
     // Take the name of the first declarator as our name for diagnostic
@@ -6655,6 +6661,19 @@ NamedDecl *Sema::ActOnVariableDeclarator(
   } else if (!II) {
     Diag(D.getIdentifierLoc(), diag::err_bad_variable_name) << Name;
     return nullptr;
+  }
+
+  if( ((DC->isClosure() || DC->isFunctionOrMethod())
+      ||(DC->isFileContext() && getCurrentModule()))
+      && Previous.isSingleResult() && II->isPlaceholder()) {
+    auto D = Previous.getFoundDecl();
+    const bool sameDC = D->getDeclContext()->getRedeclContext()->Equals(DC->getRedeclContext());
+    if(sameDC && isDeclInScope(D, CurContext, S, false)) {
+      VarName = nullptr;
+    }
+  }
+  else if(DC->isFileContext() && !getCurrentModule() && II->isPlaceholder()) {
+    Diag(D.getIdentifierLoc(), diag::warn_deprecated_underscore_id_global);
   }
 
 
@@ -6844,7 +6863,7 @@ NamedDecl *Sema::ActOnVariableDeclarator(
                                         Bindings);
     } else
       NewVD = VarDecl::Create(Context, DC, D.getBeginLoc(),
-                              D.getIdentifierLoc(), II, R, TInfo, SC);
+                              D.getIdentifierLoc(), VarName, R, TInfo, SC);
 
     // If this is supposed to be a variable template, create it as such.
     if (IsVariableTemplate) {
@@ -7160,7 +7179,7 @@ NamedDecl *Sema::ActOnVariableDeclarator(
       NewVD->setInvalidDecl();
     }
 
-    if (!IsVariableTemplateSpecialization)
+    if (!IsVariableTemplateSpecialization && VarName)
       D.setRedeclaration(CheckVariableDeclaration(NewVD, Previous));
 
     if (NewTemplate) {
@@ -7191,7 +7210,7 @@ NamedDecl *Sema::ActOnVariableDeclarator(
   }
 
   // Diagnose shadowed variables iff this isn't a redeclaration.
-  if (ShadowedDecl && !D.isRedeclaration())
+  if (VarName && ShadowedDecl && !D.isRedeclaration())
     CheckShadow(NewVD, ShadowedDecl, Previous);
 
   ProcessPragmaWeak(S, NewVD);
@@ -8678,6 +8697,11 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
   DeclarationNameInfo NameInfo = GetNameForDeclarator(D);
   DeclarationName Name = NameInfo.getName();
   StorageClass SC = getFunctionStorageClass(*this, D);
+
+  IdentifierInfo* II = Name.getAsIdentifierInfo();
+  if(II && II->isPlaceholder()) {
+    Diag(D.getBeginLoc(), diag::warn_deprecated_underscore_id_decl);
+  }
 
   if (DeclSpec::TSCS TSCS = D.getDeclSpec().getThreadStorageClassSpec())
     Diag(D.getDeclSpec().getThreadStorageClassSpecLoc(),
@@ -14858,6 +14882,11 @@ Decl *Sema::ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
   assert((Name != nullptr || TUK == TUK_Definition) &&
          "Nameless record must be a definition!");
   assert(TemplateParameterLists.size() == 0 || TUK != TUK_Reference);
+
+
+  if(!Name || Name->isPlaceholder()) {
+    Diag(NameLoc, diag::warn_deprecated_underscore_id_decl);
+  }
 
   OwnedDecl = false;
   TagTypeKind Kind = TypeWithKeyword::getTagTypeKindForTypeSpec(TagSpec);

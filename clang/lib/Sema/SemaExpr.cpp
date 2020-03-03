@@ -1914,11 +1914,18 @@ Sema::BuildDeclRefExpr(ValueDecl *D, QualType Ty, ExprValueKind VK,
   bool RefersToCapturedVariable =
       isa<VarDecl>(D) &&
       NeedToCaptureVariable(cast<VarDecl>(D), NameInfo.getLoc());
-  
+
   DeclRefExpr *E = DeclRefExpr::Create(
       Context, NNS, TemplateKWLoc, D, RefersToCapturedVariable, NameInfo, Ty,
       VK, FoundD, TemplateArgs, getNonOdrUseReasonInCurrentContext(D));
   MarkDeclRefReferenced(E);
+
+  /*const IdentifierInfo* I = NameInfo.getName().getAsIdentifierInfo();
+  if (I && I->isPlaceholder()) {
+    Diag(NameInfo.getLoc(), diag::warn_deprecated_underscore_id);
+  }*/
+
+
 
   // C++ [except.spec]p17:
   //   An exception-specification is considered to be needed when:
@@ -2297,6 +2304,10 @@ Sema::ActOnIdExpression(Scope *S, CXXScopeSpec &SS,
     // placeholder expression node.
     return ExprError();
   }
+
+  /*if(!II || II->isPlaceholder()) {
+     Diag(NameInfo.getLoc(), diag::warn_deprecated_underscore_id) << SS.getRange();
+  }*/
 
   // C++ [temp.dep.expr]p3:
   //   An id-expression is type-dependent if it contains:
@@ -3081,6 +3092,11 @@ ExprResult Sema::BuildDeclarationNameExpr(
   SourceLocation Loc = NameInfo.getLoc();
   if (CheckDeclInExpr(*this, Loc, D))
     return ExprError();
+
+  const IdentifierInfo* I = NameInfo.getName().getAsIdentifierInfo();
+  if (I && I->isPlaceholder()) {
+    Diag(NameInfo.getLoc(), diag::warn_deprecated_underscore_id);
+  }
 
   if (TemplateDecl *Template = dyn_cast<TemplateDecl>(D)) {
     // Specifically diagnose references to class templates that are missing

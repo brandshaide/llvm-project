@@ -1165,7 +1165,7 @@ void Sema::ActOnStartOfLambdaDefinition(LambdaIntroducer &Intro,
     // C++11 [expr.prim.lambda]p8:
     //   An identifier or this shall not appear more than once in a
     //   lambda-capture.
-    if (!CaptureNames.insert(C->Id).second) {
+    if (C->Id && !CaptureNames.insert(C->Id).second) {
       if (Var && LSI->isCaptured(Var)) {
         Diag(C->Loc, diag::err_capture_more_than_once)
             << C->Id << SourceRange(LSI->getCapture(Var).getLocation())
@@ -1590,6 +1590,10 @@ bool Sema::DiagnoseUnusedLambdaCapture(SourceRange CaptureRange,
 
   if (From.isVLATypeCapture())
     return false;
+
+  //Not used but unamed : do not warn
+  if(!From.getVariable()->getIdentifier())
+    return true;
 
   auto diag = Diag(From.getLocation(), diag::warn_unused_lambda_capture);
   if (From.isThisCapture())
