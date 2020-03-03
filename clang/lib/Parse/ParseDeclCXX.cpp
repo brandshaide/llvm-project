@@ -2771,6 +2771,7 @@ Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
   while (1) {
     InClassInitStyle HasInClassInit = ICIS_NoInit;
     bool HasStaticInitializer = false;
+    ExprResult Init;
     if (Tok.isOneOf(tok::equal, tok::l_brace) && PureSpecLoc.isInvalid()) {
       if (DeclaratorInfo.isDeclarationOfFunction()) {
         // It's a pure-specifier.
@@ -2864,16 +2865,23 @@ Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
         ParseCXXNonStaticMemberInitializer(ThisDecl);
     } else if (HasStaticInitializer) {
       // Normal initializer.
-      ExprResult Init = ParseCXXMemberInitializer(
+        Init = ParseCXXMemberInitializer(
           ThisDecl, DeclaratorInfo.isDeclarationOfFunction(), EqualLoc);
 
       if (Init.isInvalid())
         SkipUntil(tok::comma, StopAtSemi | StopBeforeMatch);
       else if (ThisDecl)
         Actions.AddInitializerToDecl(ThisDecl, Init.get(), EqualLoc.isInvalid());
-    } else if (ThisDecl && DS.getStorageClassSpec() == DeclSpec::SCS_static)
+    } else if (ThisDecl && DS.getStorageClassSpec() == DeclSpec::SCS_static) {
       // No initializer.
       Actions.ActOnUninitializedDecl(ThisDecl);
+    } else if (ThisDecl && isa<FieldDecl>(ThisDecl)) {
+      // placeholder/auto NSDMI's must have an initializer.
+      FieldDecl *FD = cast<FieldDecl>(ThisDecl);
+      if (FD->getType()->getContainedAutoType()) {
+        Diag(Tok, diag::err_auto_var_requires_init_parse) << FD << FD->getType();
+      }
+    }
 
     if (ThisDecl) {
       if (!ThisDecl->isInvalidDecl()) {
@@ -3346,10 +3354,14 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
   ParsedAttributes attrs(AttrFactory);
   MaybeParseGNUAttributes(attrs);
 
-  if (TagDecl)
+  if (TagDecl) {
+    //if (NonNestedClass)
+      ParseLexedAutoMemberInitializers(getCurrentClass());
+
     Actions.ActOnFinishCXXMemberSpecification(getCurScope(), RecordLoc, TagDecl,
                                               T.getOpenLocation(),
                                               T.getCloseLocation(), attrs);
+  }
 
   // C++11 [class.mem]p2:
   //   Within the class member-specification, the class is regarded as complete
