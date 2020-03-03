@@ -2879,7 +2879,7 @@ Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
       // placeholder/auto NSDMI's must have an initializer.
       FieldDecl *FD = cast<FieldDecl>(ThisDecl);
       if (FD->getType()->getContainedAutoType()) {
-        Diag(Tok, diag::err_auto_var_requires_init) << FD << FD->getType();
+        Diag(Tok, diag::err_auto_var_requires_init_parse) << FD << FD->getType();
       }
     }
 
@@ -3361,6 +3361,7 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
     Actions.ActOnFinishCXXMemberSpecification(getCurScope(), RecordLoc, TagDecl,
                                               T.getOpenLocation(),
                                               T.getCloseLocation(), attrs);
+  }
 
   // C++11 [class.mem]p2:
   //   Within the class member-specification, the class is regarded as complete

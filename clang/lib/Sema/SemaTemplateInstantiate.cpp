@@ -760,7 +760,7 @@ void Sema::PrintInstantiationStack() {
 
     case CodeSynthesisContext::Memoization:
       break;
-    
+
     case CodeSynthesisContext::ConstraintsCheck: {
       unsigned DiagID = 0;
       if (!Active->Entity) {
@@ -2583,7 +2583,7 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
     //  (9.2) of a class X, the expression this is a prvalue of type "pointer
     //  to X" within the optional brace-or-equal-initializer. It shall not
     //  appear elsewhere in the member-declarator.
-    CXXThisScopeRAII ThisScope(*this, Instantiation, (unsigned)0);
+    CXXThisScopeRAII ThisScope(*this, Instantiation, Qualifiers(), false);
 
     for (unsigned I = 0, N = FieldsWithMemberInitializers.size(); I != N; ++I) {
       FieldDecl *OldField = FieldsWithMemberInitializers[I].first;
@@ -2602,7 +2602,7 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
         if (NewField->getType()->getContainedAutoType())
           DeduceAutoMemberTypeFromInitExpr(Init, NewField);
         ActOnStartCXXInClassMemberInitializer();
-        ActOnFinishCXXInClassMemberInitializer(NewField, Init->getLocStart(), Init);
+        ActOnFinishCXXInClassMemberInitializer(NewField, Init->getBeginLoc(), Init);
       }
     }
   }
