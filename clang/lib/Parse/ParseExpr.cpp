@@ -1793,6 +1793,7 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       T.consumeOpen();
       Loc = T.getOpenLocation();
       ExprResult Idx, Length;
+      ExprVector ArgExprs;
       SourceLocation ColonLoc;
       PreferredType.enterSubscript(Actions, Tok.getLocation(), LHS.get());
       if (getLangOpts().CPlusPlus11 && Tok.is(tok::l_brace)) {
@@ -1811,31 +1812,88 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
           if (Tok.isNot(tok::r_square))
             Length = ParseExpression();
         }
-      } else
-        Idx = ParseExpression();
+      } else {
+        CommaLocsTy CommaLocs;
+        auto RunSignatureHelp = [&]() -> QualType {
+          QualType PreferredType = Actions.ProduceCallSignatureHelp(
+              getCurScope(), LHS.get(), ArgExprs, T.getOpenLocation());
+          CalledSignatureHelp = true;
+          return PreferredType;
+        };
+        if (Tok.isNot(tok::r_square)) {
+          if (ParseExpressionList(ArgExprs, CommaLocs, [&] {
+                PreferredType.enterFunctionArgument(Tok.getLocation(),
+                                                    RunSignatureHelp);
+              })) {
+            (void)Actions.CorrectDelayedTyposInExpr(LHS);
+            // If we got an error when parsing expression list, we don't call
+            // the CodeCompleteCall handler inside the parser. So call it here
+            // to make sure we get overload suggestions even when we are in the
+            // middle of a parameter.
+            if (PP.isCodeCompletionReached() && !CalledSignatureHelp)
+              RunSignatureHelp();
+            LHS = ExprError();
+          } else if (LHS.isInvalid()) {
+            for (auto &E : ArgExprs)
+              Actions.CorrectDelayedTyposInExpr(E);
+          }
+        }
+      }
 
       SourceLocation RLoc = Tok.getLocation();
-
       LHS = Actions.CorrectDelayedTyposInExpr(LHS);
       Idx = Actions.CorrectDelayedTyposInExpr(Idx);
+      // OpenMP stuff
       Length = Actions.CorrectDelayedTyposInExpr(Length);
-      if (!LHS.isInvalid() && !Idx.isInvalid() && !Length.isInvalid() &&
-          Tok.is(tok::r_square)) {
+      if (getLangOpts().OpenMP && !Length.isInvalid() && !LHS.isInvalid() && !Idx.isInvalid()) {
         if (ColonLoc.isValid()) {
           LHS = Actions.ActOnOMPArraySectionExpr(LHS.get(), Loc, Idx.get(),
                                                  ColonLoc, Length.get(), RLoc);
-        } else {
-          LHS = Actions.ActOnArraySubscriptExpr(getCurScope(), LHS.get(), Loc,
-                                                Idx.get(), RLoc);
+          T.consumeClose();
+          break;
         }
-      } else {
-        LHS = ExprError();
-        Idx = ExprError();
       }
+      assert(ArgExprs.size()-1 == CommaLocs.size() && "Unexpected number of commas!");
 
-      // Match the ']'.
+      if(ArgExprs.empty()) {
+        LHS = ExprError();
+        if(Idx.isInvalid()) {
+          ArgExprs.push_back(Idx.get());
+        }
+        else {
+          LHS = ExprError();
+        }
+      }
+      if(!ArgExprs.empty()) {
+        LHS = Actions.ActOnArraySubscriptExpr(getCurScope(), LHS.get(), Loc,
+                                  ArgExprs, Tok.getLocation());
+      }
       T.consumeClose();
       break;
+
+      /*else if (LHS.isInvalid()) {
+        SkipUntil(tok::r_brace, StopAtSemi);
+        LHS = ExprError();
+        Idx = ExprError();
+      } else if (Tok.isNot(tok::r_brace)) {
+        bool HadDelayedTypo = false;
+        for (auto &E : ArgExprs)
+          if (Actions.CorrectDelayedTyposInExpr(E).get() != E)
+            HadDelayedTypo = true;
+        // If there were delayed typos in ArgExprs, call SkipUntil
+        // instead of PT.consumeClose() to avoid emitting extra diagnostics for
+        // the unmatched l_square.
+        if (HadDelayedTypo)
+          SkipUntil(tok::r_brace, StopAtSemi);
+        else
+          T.consumeClose();
+        LHS = ExprError();
+        Idx = ExprError();
+      } else {
+
+      }*/
+      // Match the ']'.
+
     }
 
     case tok::l_paren:         // p-e: p-e '(' argument-expression-list[opt] ')'

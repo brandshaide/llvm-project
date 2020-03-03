@@ -4474,12 +4474,19 @@ static bool isMSPropertySubscriptExpr(Sema &S, Expr *Base) {
   return isa<MSPropertySubscriptExpr>(BaseNoParens);
 }
 
+static bool checkArgsForPlaceholders(Sema &S, MultiExprArg args);
+
 ExprResult
 Sema::ActOnArraySubscriptExpr(Scope *S, Expr *base, SourceLocation lbLoc,
-                              Expr *idx, SourceLocation rbLoc) {
+                              MultiExprArg ArgExprs, SourceLocation rbLoc) {
+
+  if(ArgExprs.empty()) {
+    return ExprError();
+  }
+
   if (base && !base->getType().isNull() &&
       base->getType()->isSpecificPlaceholderType(BuiltinType::OMPArraySection))
-    return ActOnOMPArraySectionExpr(base, lbLoc, idx, SourceLocation(),
+    return ActOnOMPArraySectionExpr(base, lbLoc, ArgExprs.front(), SourceLocation(),
                                     /*Length=*/nullptr, rbLoc);
 
   // Since this might be a postfix expression, get rid of ParenListExprs.
@@ -4490,13 +4497,13 @@ Sema::ActOnArraySubscriptExpr(Scope *S, Expr *base, SourceLocation lbLoc,
   }
 
   // A comma-expression as the index is deprecated in C++2a onwards.
-  if (getLangOpts().CPlusPlus2a &&
+  /*if (getLangOpts().CPlusPlus2a &&
       ((isa<BinaryOperator>(idx) && cast<BinaryOperator>(idx)->isCommaOp()) ||
        (isa<CXXOperatorCallExpr>(idx) &&
         cast<CXXOperatorCallExpr>(idx)->getOperator() == OO_Comma))) {
     Diag(idx->getExprLoc(), diag::warn_deprecated_comma_subscript)
       << SourceRange(base->getBeginLoc(), rbLoc);
-  }
+  }*/
 
   // Handle any non-overload placeholder types in the base and index
   // expressions.  We can't handle overloads here because the other
@@ -4513,18 +4520,17 @@ Sema::ActOnArraySubscriptExpr(Scope *S, Expr *base, SourceLocation lbLoc,
       base = result.get();
     }
   }
-  if (idx->getType()->isNonOverloadPlaceholderType()) {
-    ExprResult result = CheckPlaceholderExpr(idx);
-    if (result.isInvalid()) return ExprError();
-    idx = result.get();
-  }
+  if (checkArgsForPlaceholders(*this, ArgExprs))
+    return ExprError();
 
   // Build an unanalyzed expression if either operand is type-dependent.
-  if (getLangOpts().CPlusPlus &&
-      (base->isTypeDependent() || idx->isTypeDependent())) {
-    return new (Context) ArraySubscriptExpr(base, idx, Context.DependentTy,
-                                            VK_LValue, OK_Ordinary, rbLoc);
-  }
+  /*if (getLangOpts().CPlusPlus &&
+    (base->isTypeDependent() || Expr::hasAnyTypeDependentArguments(ArgExprs))) {
+      // TODO
+      return ExprError();
+      //return new (Context) ArraySubscriptExpr(base, ArgExprs, Context.DependentTy,
+      //                                       VK_LValue, OK_Ordinary, rbLoc);
+  }*/
 
   // MSDN, property (C++)
   // https://msdn.microsoft.com/en-us/library/yhfk0thd(v=vs.120).aspx
@@ -4538,7 +4544,7 @@ Sema::ActOnArraySubscriptExpr(Scope *S, Expr *base, SourceLocation lbLoc,
     // Build MS property subscript expression if base is MS property reference
     // or MS property subscript.
     return new (Context) MSPropertySubscriptExpr(
-        base, idx, Context.PseudoObjectTy, VK_LValue, OK_Ordinary, rbLoc);
+        base, ArgExprs.front(), Context.PseudoObjectTy, VK_LValue, OK_Ordinary, rbLoc);
   }
 
   // Use C++ overloaded-operator rules if either operand has record
@@ -4552,11 +4558,12 @@ Sema::ActOnArraySubscriptExpr(Scope *S, Expr *base, SourceLocation lbLoc,
   if (getLangOpts().CPlusPlus &&
       (base->getType()->isRecordType() ||
        (!base->getType()->isObjCObjectPointerType() &&
-        idx->getType()->isRecordType()))) {
-    return CreateOverloadedArraySubscriptExpr(lbLoc, rbLoc, base, idx);
+         ArgExprs.front()->getType()->isRecordType())
+        || ArgExprs.size() > 1)) {
+    return CreateOverloadedArraySubscriptExpr(lbLoc, rbLoc, base, ArgExprs);
   }
 
-  ExprResult Res = CreateBuiltinArraySubscriptExpr(base, lbLoc, idx, rbLoc);
+  ExprResult Res = CreateBuiltinArraySubscriptExpr(base, lbLoc, ArgExprs.front(), rbLoc);
 
   if (!Res.isInvalid() && isa<ArraySubscriptExpr>(Res.get()))
     CheckSubscriptAccessOfNoDeref(cast<ArraySubscriptExpr>(Res.get()));
