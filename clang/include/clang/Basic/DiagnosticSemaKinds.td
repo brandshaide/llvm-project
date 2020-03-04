@@ -5859,7 +5859,7 @@ def err_atomic_specifier_bad_type : Error<
 
 // Expressions.
 def warn_deprecated_underscore_id : Warning<
-  "using '_' in an expression is disgusting and deprecated">;
+  "using '_' in an expression is deprecated">;
 def select_unary_expr_or_type_trait_kind : TextSubstitution<
   "%select{sizeof|alignof|vec_step|__builtin_omp_required_simd_align|"
   "__alignof}0">;

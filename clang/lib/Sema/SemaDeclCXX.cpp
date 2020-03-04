@@ -12195,7 +12195,7 @@ Decl *Sema::ActOnAliasDeclaration(Scope *S, AccessSpecifier AS,
   GetTypeFromParser(Type.get(), &TInfo);
 
   IdentifierInfo* II = Name.Identifier;
-  if(!II || II->isPlaceholder()) {
+  if(II && II->isPlaceholder()) {
     Diag(UsingLoc, diag::warn_deprecated_underscore_id_decl);
   }
 
@@ -12349,7 +12349,7 @@ Decl *Sema::ActOnNamespaceAliasDef(Scope *S, SourceLocation NamespaceLoc,
   if (R.isAmbiguous())
     return nullptr;
 
-  if(!Alias || Alias->isPlaceholder()) {
+  if(Alias && Alias->isPlaceholder()) {
     Diag(AliasLoc, diag::warn_deprecated_underscore_id_decl);
   }
 
