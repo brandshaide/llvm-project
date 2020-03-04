@@ -1864,10 +1864,8 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
           LHS = ExprError();
         }
       }
-      if(!ArgExprs.empty()) {
-        LHS = Actions.ActOnArraySubscriptExpr(getCurScope(), LHS.get(), Loc,
+      LHS = Actions.ActOnArraySubscriptExpr(getCurScope(), LHS.get(), Loc,
                                   ArgExprs, Tok.getLocation());
-      }
       T.consumeClose();
       break;
 

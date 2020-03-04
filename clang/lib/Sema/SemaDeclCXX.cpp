@@ -12204,7 +12204,7 @@ Decl *Sema::ActOnAliasDeclaration(Scope *S, AccessSpecifier AS,
   GetTypeFromParser(Type.get(), &TInfo);
 
   IdentifierInfo* II = Name.Identifier;
-  if(!II || II->isPlaceholder()) {
+  if(II && II->isPlaceholder()) {
     Diag(UsingLoc, diag::warn_deprecated_underscore_id_decl);
   }
 
@@ -12358,7 +12358,7 @@ Decl *Sema::ActOnNamespaceAliasDef(Scope *S, SourceLocation NamespaceLoc,
   if (R.isAmbiguous())
     return nullptr;
 
-  if(!Alias || Alias->isPlaceholder()) {
+  if(Alias && Alias->isPlaceholder()) {
     Diag(AliasLoc, diag::warn_deprecated_underscore_id_decl);
   }
 
@@ -15157,9 +15157,10 @@ bool Sema::CheckOverloadedOperatorDeclaration(FunctionDecl *FnDecl) {
     return Diag(FnDecl->getLocation(), diag::err_operator_overload_must_be)
       << FnDecl->getDeclName() << NumParams << ErrorKind;
   }
-  if(Op == OO_Subscript && NumParams < 1) {
+
+  if(Op == OO_Subscript && NumParams  < 2) {
     return Diag(FnDecl->getLocation(), diag::err_operator_subscript_at_least_one)
-      << FnDecl->getDeclName() << NumParams;
+      << FnDecl->getDeclName() << NumParams - 1;
   }
 
 

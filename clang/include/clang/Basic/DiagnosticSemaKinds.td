@@ -5859,7 +5859,7 @@ def err_atomic_specifier_bad_type : Error<
 
 // Expressions.
 def warn_deprecated_underscore_id : Warning<
-  "using '_' in an expression is disgusting and deprecated">;
+  "using '_' in an expression is deprecated">;
 def select_unary_expr_or_type_trait_kind : TextSubstitution<
   "%select{sizeof|alignof|vec_step|__builtin_omp_required_simd_align|"
   "__alignof}0">;
@@ -6040,6 +6040,10 @@ def err_subscript_nonfragile_interface : Error<
 def err_arithmetic_nonfragile_interface : Error<
   "arithmetic on pointer to interface %0, which is not a constant size for "
   "this architecture and platform">;
+
+
+def error_subscript_not_enough_args : Error<
+  "Array subscript expression requires at least one argument">;
 
 def warn_deprecated_comma_subscript : Warning<
   "top-level comma expression in array subscript is deprecated">,
