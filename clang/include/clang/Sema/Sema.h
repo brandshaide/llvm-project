@@ -4676,6 +4676,8 @@ public:
                                 const DeclarationNameInfo &NameInfo,
                                 const TemplateArgumentListInfo *TemplateArgs);
 
+  void CheckUseOfPlaceholderVariables(const DeclarationNameInfo &NameInfo, NamedDecl *D);
+
   ExprResult BuildDeclarationNameExpr(const CXXScopeSpec &SS,
                                       LookupResult &R,
                                       bool NeedsADL,
