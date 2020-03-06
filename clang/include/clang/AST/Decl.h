@@ -252,7 +252,7 @@ public:
     return getIdentifier() ? getIdentifier()->getName() : "";
   }
 
-  bool isAnonymous() {
+  bool isAnonymous() const {
     return Decl::isAnonymous();
   }
   void setIsAnonymous(bool Anonymous) {
