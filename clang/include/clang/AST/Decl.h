@@ -252,6 +252,13 @@ public:
     return getIdentifier() ? getIdentifier()->getName() : "";
   }
 
+  bool isAnonymous() const {
+    return Decl::isAnonymous();
+  }
+  void setIsAnonymous(bool Anonymous) {
+    Decl::setIsAnonymous(Anonymous);
+  }
+
   /// Get a human-readable name for the declaration, even if it is one of the
   /// special kinds of names (C++ constructor, Objective-C selector, etc).
   ///
